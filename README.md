@@ -49,9 +49,16 @@ Copy the example env and fill in your Supabase credentials:
 cp .env.example .env
 ```
 
+Get your keys from [Supabase Dashboard](https://supabase.com/dashboard) > Settings > API:
+
 ```
+SUPABASE_PROJECT_ID=your-project-id
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+VITE_SUPABASE_PROJECT_ID=your-project-id
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ### 3. Run the dev server
@@ -128,22 +135,25 @@ Click **Demo mode** in the header to toggle realistic fake data:
 
 ## Deployment
 
-### Option 1: Lovable (Recommended)
+### Option 1: Vercel (Recommended)
+
+1. Push to a GitHub repository
+2. Go to [vercel.com/new](https://vercel.com/new) and import the repository
+3. Vercel auto-detects TanStack Start — confirm the settings and deploy
+4. Add environment variables in Vercel dashboard > Settings > Environment Variables
+
+```bash
+# Or deploy via CLI
+npm i -g vercel
+vercel
+vercel --prod
+```
+
+### Option 2: Lovable
 
 Push to your connected Lovable project — it auto-deploys on every commit.
 
-### Option 2: Vercel
-
-```bash
-npm i -g vercel
-vercel
-```
-
-Set environment variables in the Vercel dashboard. TanStack Start deploys as a serverless function.
-
 ### Option 3: Cloudflare Workers
-
-The project includes Nitro with Cloudflare as the default build target:
 
 ```bash
 npm run build
@@ -165,10 +175,16 @@ CMD ["npm", "run", "preview"]
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `VITE_SUPABASE_URL` | Your Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Your Supabase anonymous/public key |
+| Variable | Description | Client | Server |
+|----------|-------------|--------|--------|
+| `VITE_SUPABASE_URL` | Your Supabase project URL | Yes | Yes |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Your Supabase publishable key | Yes | Yes |
+| `SUPABASE_URL` | Your Supabase project URL | No | Yes |
+| `SUPABASE_PUBLISHABLE_KEY` | Your Supabase publishable key | No | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (bypasses RLS) | No | Yes |
+| `SUPABASE_PROJECT_ID` | Your Supabase project ID | No | Yes |
+
+> **Security:** Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client. It bypasses Row Level Security.
 
 ## License
 
