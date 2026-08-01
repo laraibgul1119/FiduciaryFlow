@@ -40,19 +40,55 @@ function Quiz() {
   const [result, setResult] = useState<null | { qualified: boolean; score: number }>(null);
 
   useEffect(() => {
-    supabase
-      .from("advisors")
-      .select("id,firm_name,calendly_link,disclosure,brand_color")
-      .eq("slug", slug)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setAdvisorError(true);
-        } else {
-          setAdvisor(data as Advisor);
-        }
-      })
-      .catch(() => setAdvisorError(true));
+    let cancelled = false;
+
+    async function loadAdvisor() {
+      // Try to fetch the advisor
+      const { data, error } = await supabase
+        .from("advisors")
+        .select("id,firm_name,calendly_link,disclosure,brand_color")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (data) {
+        setAdvisor(data as Advisor);
+        return;
+      }
+
+      // If no advisor found, try to seed the demo advisor
+      const { data: inserted, error: insertError } = await supabase
+        .from("advisors")
+        .upsert(
+          {
+            id: "11111111-1111-1111-1111-111111111111",
+            slug: "meridian",
+            firm_name: "Meridian Wealth Partners",
+            brand_color: "#7c5cff",
+            aum_target: 250000000,
+            calendly_link: "https://calendly.com/demo/intro",
+            min_assets: 500000,
+          },
+          { onConflict: "slug" },
+        )
+        .select("id,firm_name,calendly_link,disclosure,brand_color")
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (inserted) {
+        setAdvisor(inserted as Advisor);
+      } else {
+        setAdvisorError(true);
+      }
+    }
+
+    loadAdvisor();
+
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
   const totalSteps = 5;
