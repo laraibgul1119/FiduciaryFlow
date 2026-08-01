@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {/* Left: Logo + nav links */}
           <div className="flex items-center gap-6">
             <Link
-              to="/dashboard"
+              to="/"
               className="flex items-center gap-2 transition-opacity hover:opacity-80"
             >
               <div className="grid h-7 w-7 place-items-center rounded-lg btn-primary">

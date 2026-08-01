@@ -27,6 +27,7 @@ type Advisor = {
 function Quiz() {
   const { slug } = Route.useParams();
   const [advisor, setAdvisor] = useState<Advisor | null>(null);
+  const [advisorError, setAdvisorError] = useState(false);
   const [step, setStep] = useState(0);
   const [assets, setAssets] = useState("");
   const [pain, setPain] = useState("");
@@ -44,14 +45,24 @@ function Quiz() {
       .select("id,firm_name,calendly_link,disclosure,brand_color")
       .eq("slug", slug)
       .maybeSingle()
-      .then(({ data }) => setAdvisor(data as Advisor));
+      .then(({ data, error }) => {
+        if (error || !data) {
+          setAdvisorError(true);
+        } else {
+          setAdvisor(data as Advisor);
+        }
+      })
+      .catch(() => setAdvisorError(true));
   }, [slug]);
 
   const totalSteps = 5;
   const progress = ((step + (result ? 1 : 0)) / totalSteps) * 100;
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isValidEmail = emailRegex.test(email);
+
   const submit = async () => {
-    if (!advisor) return;
+    if (!advisor || !isValidEmail) return;
     setSubmitting(true);
     const score = scoreProspect(assets, timeline);
     const qualified = score >= 80;
@@ -74,20 +85,45 @@ function Quiz() {
       .single();
     setSubmitting(false);
     if (error) {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Submission failed. Please try again.", {
+        description: error.message,
+      });
       return;
     }
-    if (data) {
-      await supabase.from("audit_logs").insert({
-        prospect_id: data.id,
-        advisor_id: advisor.id,
-        action: "prospect.qualified",
-        actor: email,
-        details: { score, qualified, source },
-      });
+    try {
+      if (data) {
+        await supabase.from("audit_logs").insert({
+          prospect_id: data.id,
+          advisor_id: advisor.id,
+          action: "prospect.qualified",
+          actor: email,
+          details: { score, qualified, source },
+        });
+      }
+    } catch {
+      // Audit log failure is non-critical, don't block the user
     }
     setResult({ qualified, score });
   };
+
+  if (advisorError) {
+    return (
+      <div className="grid min-h-screen place-items-center">
+        <div className="text-center">
+          <p className="text-lg font-medium">Firm not found</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            No firm found for "{slug}". Please check the link and try again.
+          </p>
+          <a
+            href="/"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg btn-primary px-4 py-2 text-sm font-medium hover:btn-primary-hover transition-all"
+          >
+            Go to homepage
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   if (!advisor) {
     return (
@@ -295,6 +331,7 @@ function Quiz() {
                           onChange={setEmail}
                           placeholder="jane@example.com"
                           type="email"
+                          error={email.length > 0 && !isValidEmail ? "Please enter a valid email" : undefined}
                         />
                         <Input
                           label="Phone (optional)"
@@ -331,7 +368,7 @@ function Quiz() {
                   </button>
                 ) : (
                   <button
-                    disabled={!name || !email || submitting}
+                    disabled={!name || !email || !isValidEmail || submitting}
                     onClick={submit}
                     className="inline-flex items-center gap-2 rounded-lg btn-primary px-4 py-2 text-sm font-medium disabled:opacity-40 hover:btn-primary-hover transition-all"
                   >
@@ -470,12 +507,14 @@ function Input({
   onChange,
   placeholder,
   type = "text",
+  error,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
+  error?: string;
 }) {
   return (
     <label className="block">
@@ -485,8 +524,11 @@ function Input({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary/50 focus:bg-muted/60"
+        className={`w-full rounded-lg border bg-muted/40 px-3 py-2.5 text-sm outline-none transition-colors focus:bg-muted/60 ${
+          error ? "border-destructive focus:border-destructive" : "border-border focus:border-primary/50"
+        }`}
       />
+      {error && <span className="mt-1 block text-xs text-destructive">{error}</span>}
     </label>
   );
 }
